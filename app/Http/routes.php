@@ -366,6 +366,7 @@ if (!defined('CONTACT_EMAIL')) {
     define('ENTITY_CLIENT', 'client');
     define('ENTITY_CONTACT', 'contact');
     define('ENTITY_INVOICE', 'invoice');
+    define('ENTITY_INVOICE_COLLECTED', 'invoice_collected'); //fhoule
     define('ENTITY_DOCUMENT', 'document');
     define('ENTITY_INVOICE_ITEM', 'invoice_item');
     define('ENTITY_INVITATION', 'invitation');

@@ -25,6 +25,7 @@ $LANG = array(
     'industry_id' => 'Industry',
     'private_notes' => 'Private Notes',
     'invoice' => 'Invoice',
+    'invoice_collected' => 'Invoice collected (payment received)',
     'client' => 'Client',
     'invoice_date' => 'Invoice Date',
     'due_date' => 'Due Date',

@@ -25,6 +25,7 @@ $LANG = array(
     'industry_id' => 'Secteur',
     'private_notes' => 'Note personnelle',
     'invoice' => 'Facture',
+    'invoice_collected' => 'Facture collectée',
     'client' => 'Client',
     'invoice_date' => 'Date de la facture',
     'due_date' => 'Date d\'échéance',

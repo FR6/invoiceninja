@@ -69,6 +69,7 @@ class ReportController extends BaseController
         $reportTypes = [
             ENTITY_CLIENT => trans('texts.client'),
             ENTITY_INVOICE => trans('texts.invoice'),
+            ENTITY_INVOICE_COLLECTED => trans('texts.invoice_collected'),
             ENTITY_PRODUCT => trans('texts.product'),
             ENTITY_PAYMENT => trans('texts.payment'),
             ENTITY_EXPENSE => trans('texts.expense'),
@@ -115,6 +116,8 @@ class ReportController extends BaseController
             return $this->generateClientReport($startDate, $endDate, $isExport);
         } elseif ($reportType == ENTITY_INVOICE) {
             return $this->generateInvoiceReport($startDate, $endDate, $isExport);
+        } elseif ($reportType == ENTITY_INVOICE_COLLECTED) {
+            return $this->generateInvoiceCollectedReport($startDate, $endDate, $isExport);
         } elseif ($reportType == ENTITY_PRODUCT) {
             return $this->generateProductReport($startDate, $endDate, $isExport);
         } elseif ($reportType == ENTITY_PAYMENT) {
@@ -339,6 +342,83 @@ class ReportController extends BaseController
 
                 $reportTotals = $this->addToTotals($reportTotals, $client->currency_id, 'amount', $invoice->amount);
                 $reportTotals = $this->addToTotals($reportTotals, $client->currency_id, 'balance', $invoice->balance);
+            }
+        }
+
+        return [
+            'columns' => $columns,
+            'displayData' => $displayData,
+            'reportTotals' => $reportTotals,
+        ];
+    }
+
+    /**
+     * Will return the invoices that have been paid in this year. Even if the invoice is from a previous year.
+     *
+     * @param $startDate
+     * @param $endDate
+     * @param $isExport
+     * @return array
+     */
+    private function generateInvoiceCollectedReport($startDate, $endDate, $isExport)
+    {
+        $columns = ['client', 'invoice_number', 
+            //'invoice_date', 
+            //'amount', 
+            'payment_date', 'paid', 'method', 'balance'];
+
+        $account = Auth::user()->account;
+        $displayData = [];
+        $reportTotals = [];
+
+        $clients = Client::scope()
+                        ->withTrashed()
+                        ->with('contacts')
+                        ->where('is_deleted', '=', false)
+                        ->with(['invoices' => function($query) use ($startDate, $endDate) {
+                            $query->invoices()
+                                  ->withArchived()
+                                  //->where('invoice_date', '>=', $startDate)
+                                  //->where('invoice_date', '<=', $endDate)
+                                  ->with(['payments' => function($query) use ($startDate, $endDate) {
+                                        $query->withArchived()
+                                              ->excludeFailed()
+                                              ->with('payment_type', 'account_gateway.gateway')
+                                              ->where('payment_date', '>=', $startDate)
+                                              ->where('payment_date', '<=', $endDate);
+                                  }, 'invoice_items'])
+                                  ->withTrashed();
+                        }]);
+
+        foreach ($clients->get() as $client) {
+            foreach ($client->invoices as $invoice) {
+
+                $payments = count($invoice->payments) ? $invoice->payments : [false];
+                $invoiceHavePayment = false;
+
+                foreach ($payments as $payment) {
+
+                    if($payment) {
+                        $invoiceHavePayment = true;
+
+                        $displayData[] = [
+                            $isExport ? $client->getDisplayName() : $client->present()->link,
+                            $isExport ? $invoice->invoice_number : $invoice->present()->link,
+                            //$invoice->present()->invoice_date,
+                            //$account->formatMoney($invoice->amount, $client),
+                            $payment ? $payment->present()->payment_date : '',
+                            $payment ? $account->formatMoney($payment->getCompletedAmount(), $client) : '',
+                            $payment ? $payment->present()->method : '',
+                            $invoice->balance == '0.00' ? '' : $invoice->balance,
+                        ];
+                        $reportTotals = $this->addToTotals($reportTotals, $client->currency_id, 'paid', $payment ? $payment->getCompletedAmount() : 0);
+                    }                    
+                }
+
+                if($invoiceHavePayment){
+                    $reportTotals = $this->addToTotals($reportTotals, $client->currency_id, 'amount', $invoice->amount);
+                    $reportTotals = $this->addToTotals($reportTotals, $client->currency_id, 'balance', $invoice->balance);
+                }                
             }
         }
 
